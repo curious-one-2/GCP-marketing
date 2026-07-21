@@ -71,11 +71,11 @@ terraform destroy
 ### 📊 Analytical Query Results
 
 #### 1. Ad Performance & CTR Summary
-![Ad Performance and CTR Summary Query Output](assets/vw_ad_performance_summary.jpeg)
+![Ad Performance and CTR Summary Query Output](assets/vw_ad_performance_summary.jpg)
 
 #### 2. Hourly Traffic & Spend Trends
-![Hourly Traffic Trends Output](assets/vw_hourly_traffic_trends.jpeg)
+![Hourly Traffic Trends Output](assets/vw_hourly_traffic_trends.jpg)
 
 #### 3. Top Engaged Users
-![Top Engaged Users Output](assets/vw_user_engagement.jpeg)
+![Top Engaged Users Output](assets/vw_user_engagement.jpg)
 
