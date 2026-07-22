@@ -8,15 +8,6 @@ terraform {
   }
 }
 
-variable "project_id" {
-  type        = string
-  description = "GCP Project ID"
-}
-
-variable "project_number" {
-  type        = string
-  description = "GCP Project Number"
-}
 
 provider "google" {
   project = var.project_id
@@ -34,7 +25,7 @@ resource "google_pubsub_topic" "ad_events_dlq" {
 
 # 3. BigQuery Dataset (Satisfying Sandbox limits)
 resource "google_bigquery_dataset" "retailmedia_ds" {
-  dataset_id                      = "retailmedia_ds"
+  dataset_id                      = "${var.dataset_id}_${var.environment}"
   description                     = "Dataset for streaming ad interaction logs and dead-letter records"
   location                        = "US"
   default_table_expiration_ms     = 3600000000 # 100 hours
@@ -145,8 +136,16 @@ SELECT
   COUNTIF(event_type = 'click') AS total_clicks,
   COUNTIF(event_type = 'conversion') AS total_conversions,
   -- CTR % = (Clicks / Impressions) * 100
+  -- Use SAFE_DIVIDE to output NULL or 0 instead of erroring on zero impressions
+  -- COALESCE handles NULL values gracefully
   ROUND(
-    SAFE_DIVIDE(COUNTIF(event_type = 'click'), COUNTIF(event_type = 'impression')) * 100, 2
+    COALESCE(
+      SAFE_DIVIDE(
+        COUNTIF(event_type = 'click'), 
+        COUNTIF(event_type = 'impression')
+      ) * 100, 
+      0
+    ), 2
   ) AS ctr_percentage,
   -- Conversion Rate % = (Conversions / Clicks) * 100
   ROUND(
@@ -158,7 +157,7 @@ SELECT
     SAFE_DIVIDE(SUM(cost), COUNTIF(event_type = 'click')), 2
   ) AS avg_cpc
 FROM
-  `${var.project_id}.retailmedia_ds.ad_events`
+  `${var.project_id}.${google_bigquery_dataset.retailmedia_ds.dataset_id}.ad_events`
 WHERE
   ad_id IS NOT NULL
 GROUP BY
@@ -188,7 +187,7 @@ SELECT
   COUNTIF(event_type = 'conversion') AS conversions,
   ROUND(SUM(cost), 2) AS hourly_spend
 FROM
-  `${var.project_id}.retailmedia_ds.ad_events`
+  `${var.project_id}.${google_bigquery_dataset.retailmedia_ds.dataset_id}.ad_events`
 WHERE
   timestamp IS NOT NULL
 GROUP BY
@@ -218,7 +217,7 @@ SELECT
   COUNTIF(event_type = 'conversion') AS total_conversions,
   ROUND(SUM(cost), 2) AS user_attributed_spend
 FROM
-  `${var.project_id}.retailmedia_ds.ad_events`
+  `${var.project_id}.${google_bigquery_dataset.retailmedia_ds.dataset_id}.ad_events`
 WHERE
   user_id IS NOT NULL
 GROUP BY
@@ -232,10 +231,4 @@ SQL
   depends_on = [google_bigquery_table.ad_events_table]
 }
 
-output "pubsub_topic_name" {
-  value = google_pubsub_topic.ad_events.name
-}
 
-output "dlq_topic_name" {
-  value = google_pubsub_topic.ad_events_dlq.name
-}
